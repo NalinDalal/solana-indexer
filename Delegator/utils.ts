@@ -1,4 +1,4 @@
-import Transaction from "../models/Transaction";
+import { Transaction } from "../models/Transaction";
 import logger from "../logger/logger";
 import {
   fetchSolanaPriceAtDate,
@@ -38,14 +38,16 @@ export const createDelegateTransaction = async (
         const transactionFee: number = (meta.fee ?? 0) / LAMPORTS_PER_SOL;
 
         await Transaction.create({
-          delegatorId: address,
-          timestamp: blockTime * 1000,
-          type: "STAKE",
-          amount: stakedAmount,
-          solUsd,
-          fee: transactionFee,
-          transactionHash: signature.signature,
-          transactionCount: transactionSignatures.length,
+          data: {
+            delegatorId: address,
+            timestamp: blockTime * 1000,
+            type: "STAKE",
+            amount: stakedAmount,
+            solUsd,
+            fee: transactionFee,
+            transactionHash: signature.signature,
+            transactionCount: transactionSignatures.length,
+          },
         });
 
         logger.info(`Transaction created [${address}]`);

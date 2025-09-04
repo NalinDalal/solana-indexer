@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Delegator {
+  id                Int           @id @default(autoincrement())
+  delegatorId       String        @unique
+  timestamp         Int
+  unstaked          Boolean       @default(false)
+  unstakedTimestamp Int?          @default(-1)
+  unstakedEpoch     Int?          @default(-1)
+  apr               Float         @default(0)
+  stakedAmount      Float         @default(0)
+  activationEpoch   Int           @default(0)
+
+  rewards           Reward[]
+  transactions      Transaction[]
+}
+
+model Reward {
+  id                Int        @id @default(autoincrement())
+  delegatorId       String
+  solUsd            Float      @default(0)
+  epochNum          Int
+  timestamp         Int
+  postBalance       Float
+  postBalanceUsd    Float      @default(0)
+  userAction        String?    // could also use enum if fixed values
+  reward            Float
+  rewardUsd         Float
+  totalReward       Float
+  totalRewardUsd    Float      @default(0)
+  pendingRewards    Float
+  pendingRewardsUsd Float      @default(0)
+  stakedAmount      Float
+  stakedAmountUsd   Float
+
+  delegator         Delegator  @relation(fields: [delegatorId], references: [delegatorId], onDelete: Cascade)
+
+  @@index([delegatorId])
+}
+
+model Transaction {
+  id               Int        @id @default(autoincrement())
+  delegatorId      String
+  timestamp        Int
+  type             String
+  amount           Float
+  solUsd           Float
+  transactionCount Int
+  transactionHash  String
+  fee              Float
+
+  delegator        Delegator  @relation(fields: [delegatorId], references: [delegatorId], onDelete: Cascade)
+
+  @@index([delegatorId])
+}
+

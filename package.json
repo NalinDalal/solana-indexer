@@ -4,9 +4,21 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prisma": "^6.15.0"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "axios": "^1.11.0",
+    "node-schedule": "^2.1.1",
+    "winston": "^3.17.0"
+  },
+  "scripts": {
+    "prisma:generate": "bunx prisma generate",
+    "prisma:migrate": "bunx prisma migrate dev --skip-generate && bunx prisma generate",
+    "dev": "bun index.ts"
   }
 }

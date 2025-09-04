@@ -1,5 +1,5 @@
 import logger from "../logger/logger.js";
-import Reward from "../models/Reward.js";
+import { Reward, Delegator } from "../models/Reward";
 import {
   getProgramAccounts,
   getAccountInfo,
@@ -70,14 +70,14 @@ const findRewards = async (
   epoch: number,
 ): Promise<{ reward: number; postBalance: number }> => {
   try {
-    const data = (await Reward.findOne({
-      delegatorId,
-      epochNum: epoch,
-      duplicate: false,
-    })) as RewardDoc | null;
-
+    const data = await Reward.findFirst({
+      where: {
+        delegatorId,
+        epochNum: epoch,
+        // duplicate: false, // If you have a duplicate field in Prisma schema, add it
+      },
+    });
     if (!data) return { reward: 0, postBalance: 0 };
-
     const { reward, postBalance } = data;
     return { reward, postBalance };
   } catch (e: any) {
@@ -99,10 +99,13 @@ export const findAPRValue = async (
       currentDate.setMonth(currentDate.getMonth() - 1),
     );
 
-    const previousRewards = (await Reward.find({
-      delegatorId,
-      timestamp: { $gte: lastMonthDate },
-    }).sort({ timestamp: 1 })) as RewardDoc[];
+    const previousRewards = await Reward.findMany({
+      where: {
+        delegatorId,
+        timestamp: { gte: lastMonthDate.getTime() },
+      },
+      orderBy: { timestamp: "asc" },
+    });
 
     if (!previousRewards.length) return 0;
 

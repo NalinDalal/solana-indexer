@@ -1,5 +1,5 @@
-import Delegator, { IDelegator } from "../models/Delegator";
-import Reward, { IReward } from "../models/Reward";
+import { Delegator, IDelegator } from "../models/Delegator";
+import { Reward, IReward } from "../models/Reward";
 import { setTimestampFormat } from "../utils";
 import schedule, { Job } from "node-schedule";
 import {
@@ -68,13 +68,16 @@ const rewardsCron = async (): Promise<Job> => {
  */
 const rewardsJob = async (): Promise<void> => {
   try {
-    const delegators: IDelegator[] = await Delegator.find({ unstaked: false });
+    const delegators: IDelegator[] = await Delegator.findMany({
+      where: { unstaked: false },
+    });
     const delegatorPubKeys: string[] = delegators.map((d) => d.delegatorId);
 
     // finding the latest reward's epoch number
-    const reward: IReward | null = await Reward.findOne({
-      delegatorId: { $in: delegatorPubKeys },
-    }).sort({ epochNum: -1, timestamp: -1 });
+    const reward: IReward | null = await Reward.findFirst({
+      where: { delegatorId: { in: delegatorPubKeys } },
+      orderBy: [{ epochNum: "desc" }, { timestamp: "desc" }],
+    });
 
     // initial epoch where validator became active
     let currentEpoch = START_EPOCH;
@@ -115,14 +118,12 @@ const rewardsJob = async (): Promise<void> => {
 
           const pubkey = delegatorPubKeys[j];
 
-          const redundantReward = await Reward.findOne({
-            delegatorId: pubkey,
-            timestamp,
+          const redundantReward = await Reward.findFirst({
+            where: { delegatorId: pubkey, timestamp },
           });
           if (redundantReward) {
-            await Reward.deleteOne({
-              delegatorId: pubkey,
-              timestamp,
+            await Reward.deleteMany({
+              where: { delegatorId: pubkey, timestamp },
             });
           }
 
@@ -147,21 +148,23 @@ const rewardsJob = async (): Promise<void> => {
           const { epoch: epochNum } = delegatorReward!;
 
           await Reward.create({
-            delegatorId: pubkey,
-            epochNum,
-            solUsd,
-            timestamp,
-            userAction: "REWARD",
-            reward,
-            rewardUsd,
-            totalReward,
-            totalRewardUsd,
-            pendingRewards,
-            pendingRewardsUsd,
-            postBalance,
-            postBalanceUsd,
-            stakedAmount,
-            stakedAmountUsd,
+            data: {
+              delegatorId: pubkey,
+              epochNum,
+              solUsd,
+              timestamp,
+              userAction: "REWARD",
+              reward,
+              rewardUsd,
+              totalReward,
+              totalRewardUsd,
+              pendingRewards,
+              pendingRewardsUsd,
+              postBalance,
+              postBalanceUsd,
+              stakedAmount,
+              stakedAmountUsd,
+            },
           });
         }
         logger.info(`processed rewards for epoch [${currentEpoch}]`);
@@ -172,10 +175,14 @@ const rewardsJob = async (): Promise<void> => {
   } catch (e: any) {
     console.log(e);
     logger.error(`Rewards cron job failed: ${e.message}`);
-    const lastReward = await Reward.findOne().sort({ epochNum: -1 }).exec();
+    const lastReward = await Reward.findFirst({
+      orderBy: { epochNum: "desc" },
+    });
     if (lastReward) {
-      const data = await Reward.deleteMany({ epochNum: lastReward.epochNum });
-      logger.info(`Deleted ${data.deletedCount} rewards`);
+      const data = await Reward.deleteMany({
+        where: { epochNum: lastReward.epochNum },
+      });
+      logger.info(`Deleted rewards for epochNum ${lastReward.epochNum}`);
       console.info(JSON.stringify(data, null, 2));
     }
   }

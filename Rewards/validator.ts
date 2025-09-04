@@ -1,4 +1,4 @@
-import Reward, { IReward } from "../models/Reward.js";
+import { Reward, IReward } from "../models/Reward.js";
 import { setTimestampFormat } from "../utils/index.js";
 import schedule, { Job } from "node-schedule";
 import {

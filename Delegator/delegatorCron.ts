@@ -1,10 +1,10 @@
-import Delegator from "../models/Delegator";
+import { Delegator } from "../models/Delegator";
 import schedule, { Job } from "node-schedule";
 import { fetchLatestEpoch } from "../repository/network.repository";
 import { findAPRValue, findDelegators } from "../utils";
 import { createDelegateTransaction } from "./utils";
 import logger from "../logger/logger";
-import Transaction from "../models/Transaction";
+import { Transaction } from "../models/Transaction";
 
 /**
  * Shape of a delegator returned from `findDelegators()`.
@@ -61,20 +61,24 @@ const processDelegator = async (
 ): Promise<void> => {
   const { pubkey, activationEpoch, deactivationEpoch, stake } = delegator;
 
-  const storedDelegator = await Delegator.findOne({ delegatorId: pubkey });
+  const storedDelegator = await Delegator.findFirst({
+    where: { delegatorId: pubkey },
+  });
 
   if (!storedDelegator) {
     const unstaked = latestEpoch >= deactivationEpoch;
     const apr = unstaked ? 0 : await findAPRValue(pubkey, latestEpoch);
 
     await Delegator.create({
-      delegatorId: pubkey,
-      timestamp: Date.now(),
-      unstaked,
-      apr,
-      stakedAmount: stake,
-      activationEpoch,
-      unstakedEpoch: deactivationEpoch,
+      data: {
+        delegatorId: pubkey,
+        timestamp: Date.now(),
+        unstaked,
+        apr,
+        stakedAmount: stake,
+        activationEpoch,
+        unstakedEpoch: deactivationEpoch,
+      },
     });
 
     logger.info(`Created delegator: ${pubkey}`);
@@ -82,7 +86,7 @@ const processDelegator = async (
     return;
   }
 
-  if (!(await Transaction.findOne({ delegatorId: pubkey }))) {
+  if (!(await Transaction.findFirst({ where: { delegatorId: pubkey } }))) {
     await createDelegateTransaction(pubkey, stake);
   }
 
@@ -93,10 +97,13 @@ const processDelegator = async (
     ) {
       return;
     }
-    storedDelegator.unstaked = true;
-    storedDelegator.unstakedEpoch = deactivationEpoch;
-    await storedDelegator.save();
-
+    await Delegator.update({
+      where: { delegatorId: pubkey },
+      data: {
+        unstaked: true,
+        unstakedEpoch: deactivationEpoch,
+      },
+    });
     logger.info(`Unstaked delegator: ${pubkey}`);
     return;
   }
